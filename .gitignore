@@ -1,0 +1,13 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+backend/.venv/
+backend/app.db
+backend/public/
+backend/tmp/
+frontend/node_modules/
+frontend/dist/
+.env
+
+backend/.env
+frontend/.env
