@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    env_file:
+      - backend/.env.example
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./backend:/app
+      - shorts_public:/app/public
+      - shorts_tmp:/app/tmp
+    depends_on:
+      - redis
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    command: celery -A app.workers.celery_app.celery_app worker -l info
+    env_file:
+      - backend/.env.example
+    volumes:
+      - ./backend:/app
+      - shorts_public:/app/public
+      - shorts_tmp:/app/tmp
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    env_file:
+      - frontend/.env.example
+    ports:
+      - '5173:5173'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - '6379:6379'
+
+volumes:
+  shorts_public:
+  shorts_tmp:
