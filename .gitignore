@@ -8,6 +8,3 @@ backend/tmp/
 frontend/node_modules/
 frontend/dist/
 .env
-
-backend/.env
-frontend/.env

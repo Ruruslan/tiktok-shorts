@@ -1,84 +1,69 @@
 # TikTok Shorts Studio
 
-Production-ready веб-приложение, которое превращает длинные YouTube-видео в **ровно 10 коротких вертикальных клипов** для TikTok / Reels с помощью FastAPI, Celery, FFmpeg, транскрибации в стиле Whisper и семантического анализа через OpenAI.
+Production-oriented web application that turns long YouTube videos into **exactly 10 short vertical clips** for TikTok / Reels using FastAPI, Celery, FFmpeg, Whisper-style transcription, and OpenAI-powered semantic segmentation.
 
-## Что умеет приложение
+## Features
 
-- Принимает валидный HTTPS YouTube URL.
-- Запускает фоновый пайплайн: проверка метаданных, скачивание, транскрибация, смысловая сегментация, рендер клипов и вшивание субтитров.
-- Генерирует **ровно 10 клипов** длительностью **15–60 секунд** с опорой на транскрипт и смысловые границы.
-- Позволяет перегенерировать любой отдельный клип.
-- Даёт современный UI на React/Vite с прогрессом обработки, предпросмотром видео и кнопками скачивания.
-- Поддерживает Docker для API, worker, frontend и Redis.
-- Включает базовые меры безопасности: rate limiting, CSRF-проверку, allowlist YouTube-хостов, изоляцию временных файлов и редактирование чувствительных логов.
+- Submit a validated HTTPS YouTube URL.
+- Background pipeline for metadata validation, download, transcription, semantic clip planning, rendering, and subtitle burn-in.
+- Generates **10 clips** constrained to **15–60 seconds** with transcript-aware boundaries.
+- Regenerate any individual clip with a new semantic segment.
+- Modern React/Vite UI with progress tracking, video preview, and download links.
+- Docker support for API, worker, frontend, and Redis.
+- Security controls for rate limiting, CSRF header checks, strict host allowlists, temporary-file isolation, and log redaction.
 
-## Архитектура
+## Architecture
 
 ### Backend (`backend/`)
 
-- `app/api/v1/jobs.py` — REST API для создания задачи, проверки статуса и перегенерации клипа.
-- `app/services/youtube.py` — валидация YouTube URL, получение метаданных и скачивание исходного видео.
-- `app/services/transcription.py` — интеграция с OpenAI для транскрибации.
-- `app/services/segmentation.py` — очистка транскрипта, LLM-анализ смысловых блоков и fallback-логика.
-- `app/services/video.py` — FFmpeg-обрезка, перевод в 9:16, эвристическое центрирование по лицу и вшивание субтитров.
-- `app/workers/tasks.py` — Celery-задачи для асинхронной обработки и перегенерации.
+- `app/api/v1/jobs.py`: REST API for creating jobs, polling status, and regenerating clips.
+- `app/services/youtube.py`: YouTube URL validation, metadata probing, and download handling.
+- `app/services/transcription.py`: OpenAI transcription integration.
+- `app/services/segmentation.py`: transcript cleanup plus LLM-driven clip selection with deterministic fallback.
+- `app/services/video.py`: FFmpeg clipping, 9:16 conversion, face-aware horizontal crop heuristic, and subtitle burn-in.
+- `app/workers/tasks.py`: Celery tasks for asynchronous processing.
 
 ### Frontend (`frontend/`)
 
-- SPA на React + Vite.
-- Поле ввода URL, индикатор прогресса и поллинг статуса.
-- Сетка клипов с превью, скачиванием и кнопкой перегенерации.
+- React + Vite single-page app.
+- Progressive status UI with polling.
+- Clip grid with HTML5 previews and per-clip regeneration.
 
-## Безопасность
+## Security notes
 
-- API-ключи читаются только из переменных окружения.
-- Разрешены только HTTPS-ссылки на YouTube-хосты из allowlist.
-- Изменяющие запросы требуют заголовок `X-CSRF-Token`.
-- Запросы ограничиваются rate limiting-механизмом.
-- Временные и публичные файлы сохраняются в каталоги, принадлежащие приложению, с разделением по UUID задачи.
-- Логи фильтруются, чтобы не утекали известные чувствительные ключи.
-- Использовать приложение нужно только для видео, на переработку которых у вас есть права.
+- API keys are read from environment variables only.
+- Only HTTPS YouTube hosts on an allowlist are accepted.
+- Requests are rate-limited and require `X-CSRF-Token` on mutating endpoints.
+- Temporary and public media files are written into application-owned directories using job UUIDs.
+- Error logs are filtered to avoid leaking known sensitive keys.
+- Deployers should only process videos they are authorized to repurpose and must ensure platform-policy compliance in their environment.
 
-## Запуск одной командой
+## Local development
 
-Самый простой способ запустить всё приложение из корня репозитория:
+### 1. Configure environment
 
 ```bash
-./start.sh
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
 ```
 
-Что делает скрипт:
+Edit the copied files with your real OpenAI key and CSRF token.
 
-1. Если `backend/.env` отсутствует — создаёт его из `backend/.env.example`.
-2. Если `frontend/.env` отсутствует — создаёт его из `frontend/.env.example`.
-3. Запускает `docker compose up --build`.
+### 2. Start dependencies
 
-После запуска будут доступны:
+```bash
+docker compose up --build
+```
+
+Services:
 
 - Frontend: `http://localhost:5173`
 - API: `http://localhost:8000`
 - Redis: `localhost:6379`
 
-> Если в `backend/.env` всё ещё стоит шаблонный `OPENAI_API_KEY`, контейнеры поднимутся, но полноценная AI-обработка видео работать не будет, пока вы не укажете реальный ключ.
+### 3. Run without Docker
 
-## Подготовка `.env`
-
-При первом запуске `./start.sh` автоматически создаст файлы окружения из шаблонов. После этого откройте и при необходимости отредактируйте:
-
-```bash
-backend/.env
-frontend/.env
-```
-
-Минимально важно указать:
-
-- реальный `OPENAI_API_KEY`
-- безопасный `CSRF_TOKEN`
-- при необходимости свои `VITE_API_BASE_URL` и `VITE_PUBLIC_BASE_URL`
-
-## Ручной запуск без Docker
-
-### Backend
+Backend:
 
 ```bash
 cd backend
@@ -89,7 +74,7 @@ uvicorn app.main:app --reload
 celery -A app.workers.celery_app.celery_app worker -l info
 ```
 
-### Frontend
+Frontend:
 
 ```bash
 cd frontend
@@ -100,38 +85,38 @@ npm run dev
 ## API
 
 ### `POST /api/v1/jobs`
-Создать новую задачу обработки.
+Create a new processing job.
 
 ```json
 { "youtube_url": "https://www.youtube.com/watch?v=..." }
 ```
 
 ### `GET /api/v1/jobs/{job_id}`
-Получить текущий статус задачи и метаданные сгенерированных клипов.
+Poll job status and retrieve generated clip metadata.
 
 ### `POST /api/v1/jobs/{job_id}/regenerate`
-Перегенерировать конкретный клип.
+Regenerate a specific clip.
 
 ```json
 { "clip_id": "existing-clip-id" }
 ```
 
-## Проверки и тестирование
+## Testing
 
-Backend-тесты:
+Backend unit tests:
 
 ```bash
 cd backend && pytest
 ```
 
-Сборка frontend:
+Frontend build:
 
 ```bash
 cd frontend && npm install && npm run build
 ```
 
-## Ограничения, о которых важно знать
+## Limitations to be aware of
 
-- Для production-сценария нужен рабочий ключ OpenAI; для локальной проверки без ключа остаётся fallback-логика сегментации.
-- Совместимость скачивания зависит от исходного видео, кодеков и прав на переработку контента.
-- Центрирование кадра по лицу реализовано через лёгкую Haar Cascade эвристику; при желании это можно заменить на более продвинутый трекинг объекта.
+- OpenAI credentials are required for the production AI path; a deterministic fallback planner exists for local testing.
+- Download compatibility depends on the source video, available codecs, and the deployer's legal right to transform the media.
+- Face-centric cropping uses a lightweight Haar cascade heuristic; for highest quality you can replace it with a more advanced subject-tracking model.
